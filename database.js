@@ -44,7 +44,7 @@ async function addImage(fileName, description) {
 
   const [result] = await pool.query(query, [fileName, description]);
   const id = result.insertId
-
+  
   return await getImage(id)
 }
 

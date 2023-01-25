@@ -1,5 +1,6 @@
 const { S3Client, PutObjectCommand, DeleteObjectCommand, GetObjectCommand } = require('@aws-sdk/client-s3');
-const { dotenv } = require('dotenv');
+const { getSignedUrl } = require("@aws-sdk/s3-request-presigner");
+const dotenv= require('dotenv');
 
 dotenv.config();
 
@@ -34,6 +35,18 @@ async function uploadImage(imageName, imageBuffer, mimeType) {
     }
 }
 
+async function fetchSignedUrl(imageName) {
+    const command = new GetObjectCommand({
+      Bucket: bucketName,
+      Key: imageName
+    });
+  
+    // Set the presigned URL to expire after 24 hours
+    const signedUrl = await getSignedUrl(s3, command, { expiresIn: 60 * 60 * 24 });
+  
+    return signedUrl;
+}
+
 async function deleteImage(imageName) {
     const params = {
         Bucket: bucketName,
@@ -49,4 +62,4 @@ async function deleteImage(imageName) {
     }
 }
 
-module.exports = {uploadImage, deleteImage};
+module.exports = {uploadImage, deleteImage, fetchSignedUrl};

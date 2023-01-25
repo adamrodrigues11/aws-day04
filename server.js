@@ -5,6 +5,7 @@ const path = require('path');
 const {getImages, addImage} = require('./database.js');
 const {uploadImage} = require('./s3.js');
 const crypto = require('crypto');
+const {fetchSignedUrl} = require('./s3.js');
 
 const app = express();
 
@@ -20,15 +21,21 @@ app.use(express.static("dist"));
 // get all image data from database
 app.get("/api/images", async (req, res) => {
     const images = await getImages();
+    
+    // Add signed url to each image
+    for (const image of images) {
+        image.imageURL = await fetchSignedUrl(image.file_name);
+    }
     res.send({images});
 });
 
-// get image file by id
-app.get("/api/images/:imageName", (req, res) => {
-    const imageName = req.params.imageName;
-    const readStream = fs.createReadStream(`images/${imageName}`);
-    readStream.pipe(res);
-});
+// this is outsourced to s3 now
+// // get image file by id
+// app.get("/api/images/:imageName", (req, res) => {
+//     const imageName = req.params.imageName;
+//     const readStream = fs.createReadStream(`images/${imageName}`);
+//     readStream.pipe(res);
+// });
 
 // add image to database
 app.post("/api/images", upload.single('image'), async (req, res) => {    
@@ -45,10 +52,10 @@ app.post("/api/images", upload.single('image'), async (req, res) => {
     
     // add image to database
     const databaseResult = await addImage(imageName, description);
-    console.log(databaseResult);
-
+    databaseResult.imageURL = await fetchSignedUrl(databaseResult.file_name);
+    
     // send response
-    res.status(201).send({databaseResult});
+    res.status(201).send({image: databaseResult});
 });
 
 app.get('*', (req, res) => {
