@@ -3,10 +3,17 @@ const multer = require('multer');
 const fs = require('fs');
 const path = require('path');
 const {getImages, addImage} = require('./database.js');
+const {uploadImage} = require('./s3.js');
+const crypto = require('crypto');
 
 const app = express();
 
-const upload = multer({ dest: 'images/' });
+const storage = multer.memoryStorage();
+const upload = multer({ storage: storage });
+
+function generateImageName() {
+    return crypto.randomBytes(32).toString('hex');
+}
 
 app.use(express.static("dist"));
 
@@ -24,12 +31,24 @@ app.get("/api/images/:imageName", (req, res) => {
 });
 
 // add image to database
-app.post("/api/images", upload.single('image'), async (req, res) => {
-    const imageName = req.file.filename;
+app.post("/api/images", upload.single('image'), async (req, res) => {    
+    // get data from post request
     const description = req.body.description;
-    const image = await addImage(imageName, description);
-    console.log(image);
-    res.send({image});
+    const mimeType = req.file.mimetype;
+    const imageBuffer = req.file.buffer;
+
+    // generate unique image name
+    const imageName = generateImageName();
+    
+    // store image in s3 bucket
+    const s3Result = await uploadImage(imageName, imageBuffer, mimeType);
+    
+    // add image to database
+    const databaseResult = await addImage(imageName, description);
+    console.log(databaseResult);
+
+    // send response
+    res.status(201).send({databaseResult});
 });
 
 app.get('*', (req, res) => {
