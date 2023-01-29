@@ -2,10 +2,11 @@ const express = require('express');
 const multer = require('multer');
 const fs = require('fs');
 const path = require('path');
-const {getImages, addImage} = require('./database.js');
-const {uploadImage} = require('./s3.js');
+const {getImages, addImage, getImage, deleteImage} = require('./database.js');
+const {uploadImage, deleteImageFromS3} = require('./s3.js');
 const crypto = require('crypto');
 const {fetchSignedUrl} = require('./s3.js');
+const sharp = require('sharp');
 
 const app = express();
 
@@ -47,8 +48,13 @@ app.post("/api/images", upload.single('image'), async (req, res) => {
     // generate unique image name
     const imageName = generateImageName();
     
+    // resize image
+    const resizedImageBuffer = await sharp(imageBuffer)
+        .resize({ width: 200, height: 200, fit: 'inside' })
+        .toBuffer();
+
     // store image in s3 bucket
-    const s3Result = await uploadImage(imageName, imageBuffer, mimeType);
+    const s3Result = await uploadImage(imageName, resizedImageBuffer, mimeType);
     
     // add image to database
     const databaseResult = await addImage(imageName, description);
@@ -56,6 +62,25 @@ app.post("/api/images", upload.single('image'), async (req, res) => {
     
     // send response
     res.status(201).send({image: databaseResult});
+});
+
+app.delete("/api/images/:id", async (req, res) => {
+    const id = req.params.id;
+    try 
+    {
+        const image = await getImage(id);
+        if (!image) {
+            res.status(404).send({message: "Image not found"});
+            return;
+        }
+        await deleteImage(id);
+        await deleteImageFromS3(image.file_name);
+        res.status(200).send({image});
+    }
+    catch(error)
+    {
+        res.status(500).send({message: "Internal server error"});
+    }
 });
 
 app.get('*', (req, res) => {

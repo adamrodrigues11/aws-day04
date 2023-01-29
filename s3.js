@@ -47,7 +47,7 @@ async function fetchSignedUrl(imageName) {
     return signedUrl;
 }
 
-async function deleteImage(imageName) {
+async function deleteImageFromS3(imageName) {
     const params = {
         Bucket: bucketName,
         Key: imageName
@@ -56,10 +56,10 @@ async function deleteImage(imageName) {
     try {
         const command = new DeleteObjectCommand(params);
         await s3.send(command);
-        console.log(`imageName=${imageName} deleted successfully`);
+        console.log(`imageName=${imageName} deleted successfully from S3 bucket`);
     } catch (err) {
-        console.log("Error", err);
+        console.log("Error deleting from S3 bucket", err);
     }
 }
 
-module.exports = {uploadImage, deleteImage, fetchSignedUrl};
+module.exports = {uploadImage, deleteImageFromS3, fetchSignedUrl};

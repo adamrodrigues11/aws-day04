@@ -48,4 +48,13 @@ async function addImage(fileName, description) {
   return await getImage(id)
 }
 
-module.exports = {getImage, getImages, addImage}
+async function deleteImage(id) {
+  let query = `
+  DELETE FROM images WHERE id = ?
+  `
+
+  await pool.query(query, [id]);
+  console.log(`Image with id ${id} deleted from database`);
+}
+
+module.exports = {getImage, getImages, addImage, deleteImage}
